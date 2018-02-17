@@ -8,15 +8,6 @@
 
 #define SUBOR "input.txt"
 
-/*
- * pocetPremennych -- process max -> min -- 	vektorLen
- * 		2				2 - 1						4
- * 		3				4 - 2 - 1					8
- * 		4				8 - 4 - 2 - 1				16
- * 		5				16 - 8 - 4 - 2 - 1			32
- * */
-
-
 int _pow(unsigned long long* pa_dlzka_vektoraF,int pa_exponent){
 	int _i = 0, _rank, _pom = 1;
 	MPI_Comm_rank(MPI_COMM_WORLD, &_rank);
@@ -127,7 +118,7 @@ int main(int argc, char** argv) {
 //*/
 	}
 	
-	int* _receive_Fdata = (int*)malloc(sizeof(int)*(_dlzka_vektoraF/4));
+	//int* _receive_Fdata = (int*)malloc(sizeof(int)*(_dlzka_vektoraF/4));
 
 	if(_rankP == 0)	{
 		free(_vektor_funk);
