@@ -1,4 +1,0 @@
-# Ligic_derivation
-
-
-dsfsfs
