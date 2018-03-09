@@ -1,5 +1,7 @@
+10010111
+
 // tomaspusuje!!
-//som ide commit?
+//som doma na poludnie!!
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -167,14 +169,12 @@ int main(int argc, char** argv) {
 			MPI_Probe(0, MPI_ANY_TAG, MPI_COMM_WORLD, &_status);
 			MPI_Get_count(&_status, MPI_CHAR, &_velkostDat);
 			if(_status.MPI_TAG <= 4 && _status.MPI_TAG != 0)	{
-				printf("Velkost príjmaných dát ktoré zistil prijmateľ _%d_ a MPI_TAG _%d_ a premenná sa ma zmeniť na _%d_\n",_velkostDat,_status.MPI_TAG,_pom1);
+				//printf("Velkost príjmaných dát ktoré zistil prijmateľ _%d_ a MPI_TAG _%d_ a premenná sa ma zmeniť na _%d_\n",_velkostDat,_status.MPI_TAG,_pom1);
 				_function_data = alloc_matrix(_velkostDat/2);
 			}
 			MPI_Recv(&_function_data[0][0],_velkostDat, MPI_CHAR, 0,_status.MPI_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 			if(_status.MPI_TAG != 0)	{
 				and_and(_function_data,_velkostDat,_pom1);
-				/*printf("_function_data[0][0]=%d\n",_function_data[0][0]);
-				printf("_function_data[1][0]=%d\n",_function_data[0][1]);*/
 			}
 		}while(_status.MPI_TAG != 0);
 	}
@@ -186,7 +186,26 @@ int main(int argc, char** argv) {
 	MPI_Finalize();
 }
 
-	/*NO PARALEL*/
+
+
+
+
+/* if (_rankP == 0) {
+	// If wex are rank 0, set the number to -1 and send it to process 1
+	data[1][0] = -55551111;
+	MPI_Send(&data[0][0],(3*2), MPI_INT, 1, 0, MPI_COMM_WORLD);
+  } else if (_rankP == 1) {
+	printf("_____________________Process 1 received number %d from process 0\n", data[1][0]);
+	MPI_Recv(&data[0][0],(3*2), MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	printf("_____________________Process 1 received number %d from process 0\n", data[1][0]);
+	
+	/*for(int c = 0;c < 3;c++)		{
+		for(int i = 0;i < 2;i++)		{
+			printf("[%d][%d]__received number %d from process 0\n",c,i,data[c][i]);
+		}
+	}
+}
+* 						/*NO PARALEL*/
 				/*		int _pocit1 = 0, _pocit2 = 0;
 						for(int _i = 0;_i < _dlzka_vektoraF;_i++)	{
 							if(isNullOrOne(_i,_derivPodlaPrem) == _pom1)	{
