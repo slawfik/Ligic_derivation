@@ -1,6 +1,4 @@
-// tomaspusuje!!
-//som ide commit?
-//dalsi kommit je tu!
+// Skusam to cez ssh!
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
