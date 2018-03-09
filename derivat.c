@@ -14,27 +14,6 @@
 
 char *Data;
 
-int isNullOrOne(int pa_index,int pa_premenna)	{
-//	decimal to bin
-	int _pom[50];
-	int _i = 0;
-	if(pa_index == 0)	{
-		return 0;
-	} else {
-		while(pa_index != 0)	{
-			_pom[_i] = pa_index % 2;
-			pa_index = pa_index/2;
-			_i++;
-		}
-		_i--;
-		if(_i<pa_premenna)	{
-			return 0;
-		} else {
-			return _pom[pa_premenna];
-		}
-	}
-}
-
 int and_and(char **pa_functionData,int pa_pocetDat,int pa_zmenaPremennej)	{
 	char b;
 	int _rankP,aa,bb;
@@ -179,8 +158,11 @@ int main(int argc, char** argv) {
 	}
 
 	if(_rankP == 0)	{
-		free(_function_data); //dealokuj ináč
+		free(_function_data);
 		free(Data);
+	} else {
+		free(Data);
+		free(_function_data);
 	}
 	MPI_Finalize();
 }
