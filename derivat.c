@@ -172,9 +172,9 @@ int main(int argc, char** argv) {
 			}
 			MPI_Recv(&_function_data[0][0],_velkostDat, MPI_CHAR, 0,_status.MPI_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 			if(_status.MPI_TAG != 0)	{
-				//and_and(_function_data,_velkostDat,_pom1);
-				printf("_function_data[0][0]=%d\n",_function_data[0][0]);
-				printf("_function_data[1][0]=%d\n",_function_data[0][1]);
+				and_and(_function_data,_velkostDat,_pom1);
+				/*printf("_function_data[0][0]=%d\n",_function_data[0][0]);
+				printf("_function_data[1][0]=%d\n",_function_data[0][1]);*/
 			}
 		}while(_status.MPI_TAG != 0);
 	}
@@ -186,7 +186,7 @@ int main(int argc, char** argv) {
 	MPI_Finalize();
 }
 
-* 						/*NO PARALEL*/
+	/*NO PARALEL*/
 				/*		int _pocit1 = 0, _pocit2 = 0;
 						for(int _i = 0;_i < _dlzka_vektoraF;_i++)	{
 							if(isNullOrOne(_i,_derivPodlaPrem) == _pom1)	{
