@@ -1,5 +1,6 @@
 // tomaspusuje!!
 //som ide commit?
+//dalsi kommit je tu!
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
