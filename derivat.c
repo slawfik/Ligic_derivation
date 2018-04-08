@@ -13,7 +13,7 @@
 #define END_TAG 0
 #define NO_END_TAG 1
 #define SUBOR "input.txt"
-#define VELKOST_BUFFRA 512
+#define VELKOST_BUFFRA 256
 
 char *Data;
 //char* zalohaDAta;
@@ -30,9 +30,9 @@ int and_and(char **pa_functionData,int pa_pocetDat,int pa_zmenaPremennej)	{
 		bb = b-'0';
 		//printf("PROCESS: %d  %d_*_!%d = %d\n",_rankP,bb,aa,(bb*!aa));
 		pa_functionData[_i][0] = (bb*!aa);
-		//printf("_toto je int int %d\n",pa_functionData[_i][0]);
+		printf("_toto je int int %d\n",pa_functionData[_i][0]);
 	}
-	MPI_Ssend(&pa_functionData[0][0],pa_pocetDat, MPI_CHAR,0,NO_END_TAG, MPI_COMM_WORLD);
+	//MPI_Ssend(&pa_functionData[0][0],pa_pocetDat, MPI_CHAR,0,NO_END_TAG, MPI_COMM_WORLD);
 }
 
 void stopReceive()	{
@@ -101,6 +101,7 @@ int noParalel(int pa_pocetPrem, int pa_derivPodlaPrem, int pa_pom1)	{
 
 void* prijmanieDat()	{
 	MPI_Status _status;
+	short _end = 0;
 	char** _vysledokDerivacie;
 	int _procesy = 4;
 	int _velkostDat;
@@ -110,12 +111,14 @@ void* prijmanieDat()	{
 	_vysledokDerivacie = alloc_matrix(_velkostDat);
 
 	MPI_Recv(&_vysledokDerivacie[0][0],_velkostDat, MPI_CHAR, (_procesy%4)+1,_status.MPI_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	while(_status.MPI_TAG != 0)	{
-		_procesy++;
-		for(int i = 0;i<(_velkostDat/2);i++)	{
-			printf("Process %d: = %d\n",((_procesy-1)%4)+1,_vysledokDerivacie[i][0]);
-		}
-		MPI_Probe((_procesy%4)+1, MPI_ANY_TAG, MPI_COMM_WORLD, &_status);
+	while(1) {
+			_procesy++;
+			if(_procesy==8){ break;}
+			
+			for(int i = 0;i<(_velkostDat/2);i++)	{
+				printf("%d cakam,,,,Process %d: = %d\n",(_procesy%4)+1,((_procesy-1)%4)+1,_vysledokDerivacie[i][0]);
+			}	
+		
 		MPI_Recv(&_vysledokDerivacie[0][0],_velkostDat, MPI_CHAR, (_procesy%4)+1,_status.MPI_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	}
 	//free(_vysledokDerivacie);
@@ -144,6 +147,7 @@ int main(int argc, char** argv) {
 	  	unsigned long _dlzka_vektoraF;
 		unsigned long _pocetNacitanychNull;
 		unsigned long _pocetNacitanychJedn;
+		unsigned long _pocetPrijati;
 		FILE* _subor;
 		unsigned long _process = 4;
 		int ii;
@@ -158,7 +162,7 @@ int main(int argc, char** argv) {
 			noParalel(_pocetPrem,_derivPodlaPrem,_pom1);
 			MPI_Finalize();
 			return 0;
-		} else if(_pocetPrem <= 2 && _pocetProc != 5)	{
+		} else if(_pocetPrem <= 2 || _pocetProc != 5)	{
 			printf("Pre paralelný výpočet musí byť počet premenných väčší ako 2 alebo, počet procesov musí byť 5!!");
 			stopReceive();
 			MPI_Finalize();
@@ -178,7 +182,7 @@ int main(int argc, char** argv) {
 		_pocetNacitanychJedn = 0;
 		_pocetNacitanychNull = 0;
 	  /*END INICIALIZÁCIA PREMENNÝCH*/
-	  pthread_create(&_vlaknoPrePrijmanie,NULL,prijmanieDat,NULL);
+//	    pthread_create(&_vlaknoPrePrijmanie,NULL,prijmanieDat,NULL);
 		while(_pocitadlo != _dlzka_vektoraF)	{
 			ii = 0;
 			while(ii<(_pocetDatPreProcess/2) && ii<VELKOST_BUFFRA)	{
@@ -204,7 +208,7 @@ int main(int argc, char** argv) {
 		stopReceive();
 		printf("Pocet rozparsovaných dát je %ld\n", _pocitadlo);
 		fclose(_subor);
-		pthread_join(_vlaknoPrePrijmanie,NULL);
+//		pthread_join(_vlaknoPrePrijmanie,NULL);
 	/*END DEFINE ROOT PROCESS*/
 	} else {
 		int _velkostDat;
@@ -223,18 +227,27 @@ int main(int argc, char** argv) {
 			}
 		}while(_status.MPI_TAG != 0);
 	}
-	if(_rankP == 1)	{ //proc 1
-		MPI_Ssend(NULL,0, MPI_INT,0, END_TAG, MPI_COMM_WORLD); /*Ukoncenie počúvania vlákna!*/
-		printf("Ukonči prijmanie dát!\n");
-		free(Data);
-		free(_function_data);
-	} else if(_rankP == 0)	{ //proc 0
+	
+if(_rankP == 0)	{ //proc 0
+		printf("posledne vzdy!!!\n");
 		free(_function_data);
 		free(Data);
-	} else { //pric 2 3 4
+	} else { //proc 1 2 3 4
 		//printf("Ostatne procesy sa ukončilil\n");
+		//MPI_Send(NULL,0, MPI_INT,0, END_TAG, MPI_COMM_WORLD); /*Ukoncenie počúvania vlákna!*/
 		free(Data);
 		free(_function_data);
 	}
 	MPI_Finalize();
 }
+
+
+/*
+ * 
+ * 	if(_rankP == 1)	{ //proc 1
+//		MPI_Ssend(NULL,0, MPI_INT,0, END_TAG, MPI_COMM_WORLD); /*Ukoncenie počúvania vlákna!
+		printf("Ukonči prijmanie dát!\n");
+		free(Data);
+		free(_function_data);
+	} else 
+	*/
