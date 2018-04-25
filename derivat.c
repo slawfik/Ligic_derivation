@@ -12,7 +12,7 @@
 
 #define END_TAG 0
 #define NO_END_TAG 1
-#define VELKOST_BUFFRA 2
+#define VELKOST_BUFFRA 256
 #define OUT_NUMBER 1
 #define OUT_VECTOR 0
 
@@ -38,9 +38,11 @@ int and_and(char **pa_functionData,int pa_pocetDat,int* pa_zmenaFun_outputType,i
 		}
 	}//poslat pocet a primatel ma zacat počítať!!
 	if(pa_zmenaFun_outputType[1] == OUT_NUMBER) {
-		pa_functionData[0][0] = _pocet;
+		MPI_Ssend(&_pocet,1, MPI_INT,pa_pocetProc-1,4, MPI_COMM_WORLD);
+	} else {
+		MPI_Ssend(&pa_functionData[0][0],pa_pocetDat, MPI_CHAR,pa_pocetProc-1,4, MPI_COMM_WORLD);
+		//	printf("%daasssssss\n",pa_functionData[0][0]);
 	}
-	MPI_Ssend(&pa_functionData[0][0],pa_pocetDat, MPI_CHAR,pa_pocetProc-1,4, MPI_COMM_WORLD);
 }
 
 void stopReceive(int pa_pocetProc)	{
@@ -89,7 +91,7 @@ char dajData(unsigned long pa_premNa2,unsigned long* pa_nacitaneNULL,unsigned lo
 	return fgetc(pa_subor);
 }
 
-int noParalel(int pa_pocetPrem, int pa_derivPodlaPrem, int pa_pom1,FILE* _subor)	{
+int noParalel(int pa_pocetPrem, int pa_derivPodlaPrem, int* pa_zmenaFun_outputType,FILE* _subor)	{
 	unsigned long _pocitadlo = 0;
 	unsigned long _dlzka_vektoraF;
 	unsigned long _pocetNacitanychJedn = 0;
@@ -97,12 +99,17 @@ int noParalel(int pa_pocetPrem, int pa_derivPodlaPrem, int pa_pom1,FILE* _subor)
 	unsigned long _pom2;
 	int a;
 	int b;
+	time_t rawtime;
+	struct tm * timeinfo;
 	
+	time ( &rawtime );
+	timeinfo = localtime ( &rawtime );
+		
 	_dlzka_vektoraF = (unsigned long) pow(2,(double)pa_pocetPrem);
 	printf("NO-PARALEL Počet premenných je: %d a dĺžka pravdivostného vektora je: %ld NO-PARALEL\n",pa_pocetPrem,_dlzka_vektoraF);
-	printf("Derivácia f(1->0) / c%d(%d->%d) :\n",pa_derivPodlaPrem,!pa_pom1,pa_pom1);
+	printf("Derivácia f(1->0) / c%d(%d->%d) :\n",pa_derivPodlaPrem,!pa_zmenaFun_outputType[0],pa_zmenaFun_outputType[0]);
 	_pom2 = (unsigned long) pow(2,(double)pa_derivPodlaPrem);
-	if(pa_pom1 == 0)	{
+	if(!pa_zmenaFun_outputType[0])	{//== 0
 		while(_pocitadlo != _dlzka_vektoraF)	{
 			a = dajData(_pom2,&_pocetNacitanychNull,&_pocetNacitanychJedn,0,_subor)-'0';
 			b = dajData(_pom2,&_pocetNacitanychNull,&_pocetNacitanychJedn,1,_subor)-'0';
@@ -117,6 +124,11 @@ int noParalel(int pa_pocetPrem, int pa_derivPodlaPrem, int pa_pom1,FILE* _subor)
 			_pocitadlo = _pocitadlo+2;
 		}
 	}
+	sleep(1);
+	printf ( "Start Time %s\n", asctime (timeinfo) );
+	time(&rawtime);
+	timeinfo = localtime ( &rawtime );
+	printf ( "End Time %s\n", asctime (timeinfo) );
 	fclose(_subor);
 }
 
@@ -129,6 +141,9 @@ int prijmanieDat(int pa_pocetProc,int* pa_zmenaFun_outputType)	{
 	unsigned long _vysledok_NUM = 0;
 	char* _vysledokDerivacie;
 	MPI_Status _status;
+	
+	_pocitadloProc = pa_pocetProc-2;
+	_process = (_pocitadloProc%(pa_pocetProc-2))+1;
 
 	MPI_Bcast(pa_zmenaFun_outputType, 2, MPI_INT, 0,MPI_COMM_WORLD);
 	if(pa_zmenaFun_outputType[0] == -1)	{
@@ -137,34 +152,42 @@ int prijmanieDat(int pa_pocetProc,int* pa_zmenaFun_outputType)	{
 		/*##########################################*/
 		return -1;
 	} else {
-		_pocitadloProc = pa_pocetProc-2;
-		_process = (_pocitadloProc%(pa_pocetProc-2))+1;
-		MPI_Probe(_process, MPI_ANY_TAG, MPI_COMM_WORLD, &_status);
-		MPI_Get_count(&_status, MPI_CHAR, &_velkostDat);
-		_vysledokDerivacie = (char*) malloc(sizeof(char)*_velkostDat);
-		while(_end != (pa_pocetProc-2))	{
-			MPI_Recv(&_vysledokDerivacie[0], _velkostDat, MPI_CHAR, _process, MPI_ANY_TAG, MPI_COMM_WORLD, &_status);
+		if(pa_zmenaFun_outputType[1] == OUT_VECTOR)	{
+			MPI_Probe(_process, MPI_ANY_TAG, MPI_COMM_WORLD, &_status);
 			MPI_Get_count(&_status, MPI_CHAR, &_velkostDat);
-			_i = 0;
-			if(_status.MPI_TAG != END_TAG && pa_zmenaFun_outputType[1] == OUT_VECTOR)	{
-				while(_i != _velkostDat/2)	{
-					printf("TH Process: %d velkosť dát %d a výsledok _%c_!\n",_process,_velkostDat/2,_vysledokDerivacie[_i*2]);
-					_i++;
+			_vysledokDerivacie = (char*) malloc(sizeof(char)*_velkostDat);
+			while(_end != (pa_pocetProc-2))	{
+				MPI_Recv(&_vysledokDerivacie[0], _velkostDat, MPI_CHAR, _process, MPI_ANY_TAG, MPI_COMM_WORLD, &_status);
+				MPI_Get_count(&_status, MPI_CHAR, &_velkostDat);
+				_i = 0;
+				if(_status.MPI_TAG != END_TAG)	{
+					while(_i != _velkostDat/2)	{
+						printf("TH Process: %d velkosť dát %d a výsledok _%c_!\n",_process,_velkostDat/2,_vysledokDerivacie[_i*2]);
+						_i++;
+					}
+				}else {
+					//printf("end++\n");		//DEEBUG VÝPIS
+					_end++;	
 				}
-			} else if(_status.MPI_TAG != END_TAG && pa_zmenaFun_outputType[1] == OUT_NUMBER) {
-				_vysledok_NUM += _vysledokDerivacie[0];
-			}else {
-				//printf("end++\n");		//DEEBUG VÝPIS
-				_end++;	
+				_pocitadloProc++;
+				_process = (_pocitadloProc%(pa_pocetProc-2))+1;
 			}
-			_pocitadloProc++;
-			_process = (_pocitadloProc%(pa_pocetProc-2))+1;
-		}
-		if(pa_zmenaFun_outputType[1] == OUT_NUMBER) {
-			printf("Počet jednotiek vo výsledku derivácie _%ld_!\n",_vysledok_NUM);
+			free(_vysledokDerivacie);
+		} else {//pa_zmenaFun_outputType[1] == OUT_NUMBER
+			while(_end != (pa_pocetProc-2))	{
+				MPI_Recv(&_velkostDat, 1, MPI_INT, _process, MPI_ANY_TAG, MPI_COMM_WORLD, &_status);
+				if(_status.MPI_TAG != END_TAG)	{
+					_vysledok_NUM+=_velkostDat;
+				}else {
+					//printf("end++\n");		//DEEBUG VÝPIS
+					_end++;	
+				}
+				_pocitadloProc++;
+				_process = (_pocitadloProc%(pa_pocetProc-2))+1;
+			}
+				printf("Počet jednotiek vo výsledku derivácie _%ld_!\n",_vysledok_NUM);
 		}
 		printf("Vlakno skoncilo\n");
-		free(_vysledokDerivacie);
 	}
 }
 
@@ -215,7 +238,7 @@ int main(int argc, char** argv) {
 		_derivPodlaPrem = atoi(argv[2]);			//Zistím premennú podla ktorej budeme derivovať
 		_zmenaFun_outputType[0] = atoi(argv[3]);	//na aku hodnotu sledujeme zmenu funkcie
 		_subor = fopen(argv[1],"r");
-		if(argv[4] != NULL)	{						//ZYSTIM TYP VÝSTUPU
+		if(argv[4] != NULL && (0 == strcmp(argv[4],"-n")))	{						//ZYSTIM TYP VÝSTUPU
 			_zmenaFun_outputType[1] = OUT_NUMBER;
 		} else {
 			_zmenaFun_outputType[1] = OUT_VECTOR;
@@ -232,7 +255,7 @@ int main(int argc, char** argv) {
 	  /*----END INIT PREMENNÝCH----------*/
 		
 		if(_pocetProc == 1)	{  /*IF NO paralel*/
-			noParalel(_pocetPrem,_derivPodlaPrem,_zmenaFun_outputType[0],_subor);
+			noParalel(_pocetPrem,_derivPodlaPrem,_zmenaFun_outputType,_subor);
 			MPI_Finalize();
 			return 0;
 		
@@ -305,11 +328,20 @@ int main(int argc, char** argv) {
 /*_____________END DEFINE ROOT PROCESS______________*/
 
 	} else if (_pocetProc-1 == _rankP) { //LAST proc
+		time_t rawtime;
+		struct tm * timeinfo;
+		time ( &rawtime );
+		timeinfo = localtime ( &rawtime );
+
 		_zmenaFun_outputType[0] = prijmanieDat(_pocetProc,_zmenaFun_outputType);
 		if(_zmenaFun_outputType[0] == -1)	{
 			MPI_Finalize();
 			return -1;
 		}
+		printf( "Start Time %s\n", asctime(timeinfo) );
+		time( &rawtime );
+		timeinfo = localtime( &rawtime );
+		printf( "End Time %s\n", asctime(timeinfo) );
 	} else {
 /*__________DEFINE ALL CALCULATE PROCESS_________*/
 		int _velkostDat;
