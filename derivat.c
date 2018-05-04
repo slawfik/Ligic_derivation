@@ -18,32 +18,6 @@
 
 char *Data;
 
-int and_and(char **pa_functionData,int pa_pocetDat,int* pa_zmenaFun_outputType,int pa_pocetProc)	{
-	int _rankP;
-	int _pocet = 0;
-	int aa;
-	int bb;
-	
-	MPI_Comm_rank(MPI_COMM_WORLD, &_rankP);
-	for(int _i = 0;_i<(pa_pocetDat/2);_i++)	{
-		aa = pa_functionData[_i][pa_zmenaFun_outputType[0]]-'0';
-		bb = pa_functionData[_i][!pa_zmenaFun_outputType[0]]-'0';
-		//printf("PROCESS__%d:  %d_*_!%d = %d\n",_rankP,bb,aa,(bb*!aa));		//DEEBUG VÝPIS
-		pa_functionData[_i][0] = ((bb*!aa)+'0');
-
-		if(pa_zmenaFun_outputType[1] == OUT_NUMBER) {
-			if(pa_functionData[_i][0] == '1')	{
-				_pocet++;
-			}
-		}
-	}//poslat pocet a primatel ma zacat počítať!!
-	if(pa_zmenaFun_outputType[1] == OUT_NUMBER) {
-		MPI_Ssend(&_pocet,1, MPI_INT,pa_pocetProc-1,4, MPI_COMM_WORLD);
-	} else {
-		MPI_Ssend(&pa_functionData[0][0],pa_pocetDat, MPI_CHAR,pa_pocetProc-1,4, MPI_COMM_WORLD);
-		//	printf("%daasssssss\n",pa_functionData[0][0]);
-	}
-}
 
 void stopReceive(int pa_pocetProc)	{
 	for(int i=1;i<pa_pocetProc-1;i++)	{
@@ -51,18 +25,8 @@ void stopReceive(int pa_pocetProc)	{
 	}
 }
 
-char **alloc_matrix(int riadky) {	/*vytvorý maticu (n*2) */
-    Data = (char *)malloc(riadky*2*sizeof(char));
-    char **_function_data = (char **)malloc(riadky*sizeof(char*));
-    for (int i=0; i<riadky; i++)	{
-        _function_data[i] = &(Data[2*i]);
-	}
-    return _function_data;
-}
-
 double dajPocetPremennych(FILE* pa_subor)	{
 	unsigned long _pocetBytes;
-	double _vysledok;
 	double _citatel;
 	double _menovatel;
 	fseek(pa_subor, 0, SEEK_END);
@@ -97,6 +61,8 @@ int noParalel(int pa_pocetPrem, int pa_derivPodlaPrem, int* pa_zmenaFun_outputTy
 	unsigned long _pocetNacitanychJedn = 0;
 	unsigned long _pocetNacitanychNull = 0;
 	unsigned long _pom2;
+	unsigned long _vysledok;
+	unsigned long _pocetJednot;
 	int a;
 	int b;
 	time_t rawtime;
@@ -109,7 +75,7 @@ int noParalel(int pa_pocetPrem, int pa_derivPodlaPrem, int* pa_zmenaFun_outputTy
 	printf("NO-PARALEL Počet premenných je: %d a dĺžka pravdivostného vektora je: %ld NO-PARALEL\n",pa_pocetPrem,_dlzka_vektoraF);
 	printf("Derivácia f(1->0) / c%d(%d->%d) :\n",pa_derivPodlaPrem,!pa_zmenaFun_outputType[0],pa_zmenaFun_outputType[0]);
 	_pom2 = (unsigned long) pow(2,(double)pa_derivPodlaPrem);
-	if(!pa_zmenaFun_outputType[0])	{//== 0
+/*	if(!pa_zmenaFun_outputType[0])	{//== 0
 		while(_pocitadlo != _dlzka_vektoraF)	{
 			a = dajData(_pom2,&_pocetNacitanychNull,&_pocetNacitanychJedn,0,_subor)-'0';
 			b = dajData(_pom2,&_pocetNacitanychNull,&_pocetNacitanychJedn,1,_subor)-'0';
@@ -124,90 +90,118 @@ int noParalel(int pa_pocetPrem, int pa_derivPodlaPrem, int* pa_zmenaFun_outputTy
 			_pocitadlo = _pocitadlo+2;
 		}
 	}
-	sleep(1);
+
 	printf ( "Start Time %s\n", asctime (timeinfo) );
 	time(&rawtime);
 	timeinfo = localtime ( &rawtime );
 	printf ( "End Time %s\n", asctime (timeinfo) );
 	fclose(_subor);
-}
-
-int prijmanieDat(int pa_pocetProc,int* pa_zmenaFun_outputType)	{
-	int _velkostDat;
-	int _pocitadloProc;
-	int _process;
-	int _end = 0;
-	int _i;
-	unsigned long _vysledok_NUM = 0;
-	char* _vysledokDerivacie;
-	MPI_Status _status;
+	*/
 	
-	_pocitadloProc = pa_pocetProc-2;
-	_process = (_pocitadloProc%(pa_pocetProc-2))+1;
+	while(_pocitadlo != _dlzka_vektoraF)    {
+        if(!pa_zmenaFun_outputType[0])  {//== 0
 
-	MPI_Bcast(pa_zmenaFun_outputType, 2, MPI_INT, 0,MPI_COMM_WORLD);
-	if(pa_zmenaFun_outputType[0] == -1)	{
-		/*##########################################*/
-		/* Ukončenie prijímajúceho procesu s chybou */
-		/*##########################################*/
-		return -1;
-	} else {
-		if(pa_zmenaFun_outputType[1] == OUT_VECTOR)	{
-			MPI_Probe(_process, MPI_ANY_TAG, MPI_COMM_WORLD, &_status);
-			MPI_Get_count(&_status, MPI_CHAR, &_velkostDat);
-			_vysledokDerivacie = (char*) malloc(sizeof(char)*_velkostDat);
-			while(_end != (pa_pocetProc-2))	{
-				MPI_Recv(&_vysledokDerivacie[0], _velkostDat, MPI_CHAR, _process, MPI_ANY_TAG, MPI_COMM_WORLD, &_status);
-				MPI_Get_count(&_status, MPI_CHAR, &_velkostDat);
-				_i = 0;
-				if(_status.MPI_TAG != END_TAG)	{
-					while(_i != _velkostDat/2)	{
-						printf("TH Process: %d velkosť dát %d a výsledok _%c_!\n",_process,_velkostDat/2,_vysledokDerivacie[_i*2]);
-						_i++;
-					}
-				}else {
-					//printf("end++\n");		//DEEBUG VÝPIS
-					_end++;	
-				}
-				_pocitadloProc++;
-				_process = (_pocitadloProc%(pa_pocetProc-2))+1;
-			}
-			free(_vysledokDerivacie);
-		} else {//pa_zmenaFun_outputType[1] == OUT_NUMBER
-			while(_end != (pa_pocetProc-2))	{
-				MPI_Recv(&_velkostDat, 1, MPI_INT, _process, MPI_ANY_TAG, MPI_COMM_WORLD, &_status);
-				if(_status.MPI_TAG != END_TAG)	{
-					_vysledok_NUM+=_velkostDat;
-				}else {
-					//printf("end++\n");		//DEEBUG VÝPIS
-					_end++;	
-				}
-				_pocitadloProc++;
-				_process = (_pocitadloProc%(pa_pocetProc-2))+1;
-			}
-				printf("Počet jednotiek vo výsledku derivácie _%ld_!\n",_vysledok_NUM);
-		}
-		printf("Vlakno skoncilo\n");
+                        a = dajData(_pom2,&_pocetNacitanychNull,&_pocetNacitanychJedn,0,_subor)-'0';
+                        b = dajData(_pom2,&_pocetNacitanychNull,&_pocetNacitanychJedn,1,_subor)-'0';
+
+                        printf("%d",(!(a)*(b)));
+                        _vysledok = !(a)*(b);
+                        _pocitadlo = _pocitadlo+2;
+
+        } else {
+        //      while(_pocitadlo != _dlzka_vektoraF)    {
+                        a = dajData(_pom2,&_pocetNacitanychNull,&_pocetNacitanychJedn,0,_subor)-'0';
+                        b = dajData(_pom2,&_pocetNacitanychNull,&_pocetNacitanychJedn,1,_subor)-'0';
+
+                        printf("%d",(!(a)*(b)));
+                        _vysledok = !(a)*(b);
+                        _pocitadlo = _pocitadlo+2;
+        //      }
+        }
+        if(pa_zmenaFun_outputType[1] == OUT_VECTOR)     {
+                //printf("DERIVACIA %ld\n",_vysledok);
+        } else {
+                if(_vysledok == 1)      {
+                        _pocetJednot++;
+                }
+        }
 	}
+	printf("pocet jednotiek v derivácii %ld\n",_pocetJednot);
+
+	printf ( "Start Time %s\n", asctime (timeinfo) );
+	time(&rawtime);
+	timeinfo = localtime ( &rawtime );
+	printf ( "End Time %s\n", asctime (timeinfo) );
+	fclose(_subor);
+
 }
 
-void error(int pa_errorNum)	{
-	switch(pa_errorNum)	{
-		case 1:
-			;
-			break;
-		case 2:
-			;
-	}
+int prijmanieDat(int pa_pocetProc,int* pa_zmenaFun_outputType_derivPodlaPrem)	{
+    int _velkostDat;
+    int _pocitadloProc;
+    int _process;
+    int _end = 0;
+    int _i;
+    unsigned long _vysledok_NUM = 0;
+    char* _vysledokDerivacie;
+    MPI_Status _status;
+
+    _pocitadloProc = pa_pocetProc-2;
+    _process = (_pocitadloProc%(pa_pocetProc-2))+1;
+
+    switch (pa_zmenaFun_outputType_derivPodlaPrem[1])	{
+
+        case OUT_VECTOR:
+            MPI_Probe(_process, MPI_ANY_TAG, MPI_COMM_WORLD, &_status);
+            MPI_Get_count(&_status, MPI_CHAR, &_velkostDat);
+            _vysledokDerivacie = (char*) malloc(sizeof(char)*_velkostDat);
+            while(_end != (pa_pocetProc-2))	{
+                MPI_Recv(&_vysledokDerivacie[0], _velkostDat, MPI_CHAR, _process, MPI_ANY_TAG, MPI_COMM_WORLD, &_status);
+                MPI_Get_count(&_status, MPI_CHAR, &_velkostDat);
+                _i = 0;
+                if(_status.MPI_TAG != END_TAG)	{
+                    while(_i != _velkostDat)	{
+                        printf("TH Process: %d velkosť dát %d a výsledok _%d_!\n",_process,_velkostDat,_vysledokDerivacie[_i]);
+                        _i++;
+                    }
+                }else {
+                    _end++;	
+                }
+                _pocitadloProc++;
+                if(_pocitadloProc == ((pa_pocetProc-2)*200))	{//aby nepretieklo počítanie procesov
+                    _pocitadloProc = pa_pocetProc-2;
+                }
+                _process = (_pocitadloProc%(pa_pocetProc-2))+1;
+            }
+            free(_vysledokDerivacie);
+            break;
+
+        case OUT_NUMBER:
+            while(_end != (pa_pocetProc-2))	{
+                MPI_Recv(&_velkostDat, 1, MPI_INT, _process, MPI_ANY_TAG, MPI_COMM_WORLD, &_status);
+                if(_status.MPI_TAG != END_TAG)	{
+                    _vysledok_NUM+=_velkostDat;
+                }else {
+                    _end++;	
+                }
+                _pocitadloProc++;
+                if(_pocitadloProc == ((pa_pocetProc-2)*200))	{//aby nepretieklo počítanie procesov
+                    _pocitadloProc = pa_pocetProc-2;
+                }
+                _process = (_pocitadloProc%(pa_pocetProc-2))+1;
+            }
+            printf("\nPočet jednotiek vo výsledku derivácie _%ld_!\n",_vysledok_NUM);
+            break;
+    }	
 }
 
 int main(int argc, char** argv) {
 /*---------DEFINE VARIABLES FOR EACH PROCESS------------*/
 	int _rankP;
 	int _pocetProc;
-	int _zmenaFun_outputType[2];
-	char** _function_data;
+	int _zmenaFun_outputType_derivujPodla[3];
 	double _pocetPrem;
+	unsigned long _premennaNaDruhu;
 /*---------END DEFINE VARIABLES FOR EACH PROCESS------------*/
 
 	MPI_Init(NULL, NULL);
@@ -218,17 +212,14 @@ int main(int argc, char** argv) {
 	if(_rankP == 0)	{
 				
 	  /*DEFINE VARIABLES FOR ROOT PROCESS*/
-		pthread_t _vlaknoPrePrijmanie;
 	  	unsigned long _dlzka_vektoraF;
 		unsigned long _pocetNacitanychNull;
 		unsigned long _pocetNacitanychJedn;
-		unsigned long _pocetNULLDatPreProcess;
 		unsigned long _pocetDatPreProcess;
-		unsigned long _premennaNaDruhu;
 		unsigned long _pocitadlo = 0;
+		unsigned long _send_Data[3];
 		FILE* _subor;
 		int _process = (_pocetProc-2);
-		int ii;
 		int _zvysok;
 		int _derivPodlaPrem;
 		int _pom;
@@ -236,17 +227,18 @@ int main(int argc, char** argv) {
 	  
 	  /*----INICIALIZÁCIA PREMENNÝCH----*/
 		_derivPodlaPrem = atoi(argv[2]);			//Zistím premennú podla ktorej budeme derivovať
-		_zmenaFun_outputType[0] = atoi(argv[3]);	//na aku hodnotu sledujeme zmenu funkcie
+		_zmenaFun_outputType_derivujPodla[0] = atoi(argv[3]);	//na aku hodnotu sledujeme zmenu funkcie
 		_subor = fopen(argv[1],"r");
 		if(argv[4] != NULL && (0 == strcmp(argv[4],"-n")))	{						//ZYSTIM TYP VÝSTUPU
-			_zmenaFun_outputType[1] = OUT_NUMBER;
+			_zmenaFun_outputType_derivujPodla[1] = OUT_NUMBER;
 		} else {
-			_zmenaFun_outputType[1] = OUT_VECTOR;
+			_zmenaFun_outputType_derivujPodla[1] = OUT_VECTOR;
 		}
+		_zmenaFun_outputType_derivujPodla[2] = _derivPodlaPrem;
 		if(_subor == NULL)	{	
 			printf("Nepodarilo sa otvoriť súbor %s\n",argv[1]);
-			_zmenaFun_outputType[0] = -1;
-			MPI_Bcast(&_zmenaFun_outputType[0], 2, MPI_INT, _rankP,MPI_COMM_WORLD);
+			_zmenaFun_outputType_derivujPodla[0] = -1;
+			MPI_Bcast(&_zmenaFun_outputType_derivujPodla[0], 3, MPI_INT, _rankP,MPI_COMM_WORLD);
 			MPI_Finalize();
 			return -1;
 		}
@@ -255,34 +247,33 @@ int main(int argc, char** argv) {
 	  /*----END INIT PREMENNÝCH----------*/
 		
 		if(_pocetProc == 1)	{  /*IF NO paralel*/
-			noParalel(_pocetPrem,_derivPodlaPrem,_zmenaFun_outputType,_subor);
+			noParalel(_pocetPrem,_derivPodlaPrem,_zmenaFun_outputType_derivujPodla,_subor);
+                        fclose(_subor);
 			MPI_Finalize();
 			return 0;
 		
 		} else if((_pocetProc-2) > _dlzka_vektoraF/2 | _pocetProc == 2) { /* ERROR INPUT BAD PROCESS NUMBER */
-			_zmenaFun_outputType[0] = -1;
+			_zmenaFun_outputType_derivujPodla[0] = -1;
 			printf("Error výpočet môže byť rozdelený maximálne do %d procesov a nesmú sa použiť 2 procesy!\n",(_dlzka_vektoraF/2)+1);
-			MPI_Bcast(&_zmenaFun_outputType[0], 2, MPI_INT, _rankP,MPI_COMM_WORLD);
+			MPI_Bcast(&_zmenaFun_outputType_derivujPodla[0], 2, MPI_INT, _rankP,MPI_COMM_WORLD);
 			MPI_Finalize();
 			return -1;
 		
 		} else if((double)_derivPodlaPrem >= _pocetPrem ) { /* ERROR INPUT BAD VARIABLE FOR DERIVATION */
-			_zmenaFun_outputType[0] = -1;
+			_zmenaFun_outputType_derivujPodla[0] = -1;
 			printf("Error premená musí byť menšia ako počet všetkých premenných!! Počet premenných je %.1f\n",_pocetPrem);
-			MPI_Bcast(&_zmenaFun_outputType[0], 2, MPI_INT, _rankP,MPI_COMM_WORLD);
+			MPI_Bcast(&_zmenaFun_outputType_derivujPodla[0], 2, MPI_INT, _rankP,MPI_COMM_WORLD);
 			MPI_Finalize();
 			return -1;
 		
 		}else {	/*Paralelné spracovanie*/
-			_function_data = alloc_matrix(VELKOST_BUFFRA);
 			//MPI_Buffer_attach(b,(VELKOST_BUFFRA*2)+MPI_BSEND_OVERHEAD);
 			printf("Počet premenných je: %.1f a dĺžka pravdivostného vektora je: %ld\n",_pocetPrem,_dlzka_vektoraF);
-			printf("Derivácia f(1->0) / c%d(%d->%d) :\n",_derivPodlaPrem,!_zmenaFun_outputType[0],_zmenaFun_outputType[0]);
-			MPI_Bcast(&_zmenaFun_outputType[0], 2, MPI_INT, _rankP,MPI_COMM_WORLD);
+			printf("Derivácia f(1->0) / c%d(%d->%d) :\n",_derivPodlaPrem,!_zmenaFun_outputType_derivujPodla[0],_zmenaFun_outputType_derivujPodla[0]);
+			MPI_Bcast(&_zmenaFun_outputType_derivujPodla[0], 2, MPI_INT, _rankP,MPI_COMM_WORLD);
 			
 			_pocetDatPreProcess = (_dlzka_vektoraF/2)/(_pocetProc-2);
 			_zvysok = (_dlzka_vektoraF/2)%(_pocetProc-2);
-			_premennaNaDruhu = pow(2,(double)_derivPodlaPrem); /*premenna podla ktorej chceme 2^derivovať*/
 			_pocetNacitanychJedn = 0;
 			_pocetNacitanychNull = 0;
 			if(_pocetDatPreProcess < VELKOST_BUFFRA)	{
@@ -291,7 +282,7 @@ int main(int argc, char** argv) {
 			}
 		
 			while(_pocitadlo != _dlzka_vektoraF)	{		/* DATA PARSING */
-				if(_process == ((_pocetProc-2)*20))	{
+				if(_process == ((_pocetProc-2)*200))	{
 					_process = (_pocetProc-2);
 				}
 				if(_pom == -1)	{
@@ -302,23 +293,25 @@ int main(int argc, char** argv) {
 						_zvysok--;
 					}
 				}
-				ii = 0;
-				while(ii<VELKOST_BUFFRA && _pocetNacitanychNull < _dlzka_vektoraF/2 && ii < _pocetDatPreProcess)	{
-					_function_data[ii][0] = dajData(_premennaNaDruhu,&_pocetNacitanychNull,&_pocetNacitanychJedn,0,_subor);
-					_pocitadlo++;
-					//printf("_function_data[%d][0]=%c\n",ii,_function_data[ii][0]);		//DEEBUG VÝPIS
-					ii++;
+				
+				if(_pocetDatPreProcess < VELKOST_BUFFRA)	{
+					_send_Data[0] = _pocetNacitanychNull;
+					_send_Data[1] = _pocetNacitanychJedn;
+					_send_Data[2] = _pocetDatPreProcess;
+					_pocetNacitanychNull += _pocetDatPreProcess;
+					_pocetNacitanychJedn += _pocetDatPreProcess;
+					_pocitadlo += (_pocetDatPreProcess*2);
+				} else {
+					_send_Data[0] = _pocetNacitanychNull;
+					_send_Data[1] = _pocetNacitanychJedn;
+					_send_Data[2] = VELKOST_BUFFRA;
+					_pocetNacitanychNull += VELKOST_BUFFRA;
+					_pocetNacitanychJedn += VELKOST_BUFFRA;
+					_pocitadlo += (VELKOST_BUFFRA*2);
 				}
-				ii = 0;
-				while(ii<VELKOST_BUFFRA && _pocetNacitanychJedn < _dlzka_vektoraF/2 && ii < _pocetDatPreProcess)	{
-					_function_data[ii][1] = dajData(_premennaNaDruhu,&_pocetNacitanychNull,&_pocetNacitanychJedn,1,_subor);
-					_pocitadlo++;
-					//printf("_function_data[%d][1]=%c\n",ii,_function_data[ii][1]);		//DEEBUG VÝPIS
-					ii++;
-				}
-				//printf("pocet poslnaných dát %d \n",ii);		//DEEBUG VÝPIS
-				MPI_Ssend(&_function_data[0][0],ii*2, MPI_CHAR,(_process%(_pocetProc-2))+1, _process-(_pocetProc-3), MPI_COMM_WORLD);
-				_process++;	
+				//printf("pocitadlo pocitadlo %ld \n",_pocitadlo);
+				MPI_Ssend(&_send_Data[0],3, MPI_UNSIGNED_LONG,(_process%(_pocetProc-2))+1, (_process%(_pocetProc-2))+1, MPI_COMM_WORLD);
+				_process++;
 			}
 			stopReceive(_pocetProc);
 			printf("Root process rozparsoval %ld dát.\n", _pocitadlo);
@@ -328,62 +321,93 @@ int main(int argc, char** argv) {
 /*_____________END DEFINE ROOT PROCESS______________*/
 
 	} else if (_pocetProc-1 == _rankP) { //LAST proc
-		time_t rawtime;
-		struct tm * timeinfo;
-		time ( &rawtime );
-		timeinfo = localtime ( &rawtime );
+            time_t rawtime;
+            struct tm * timeinfo;
+            time ( &rawtime );
+            timeinfo = localtime ( &rawtime );
 
-		_zmenaFun_outputType[0] = prijmanieDat(_pocetProc,_zmenaFun_outputType);
-		if(_zmenaFun_outputType[0] == -1)	{
-			MPI_Finalize();
-			return -1;
-		}
-		printf( "Start Time %s\n", asctime(timeinfo) );
-		time( &rawtime );
-		timeinfo = localtime( &rawtime );
-		printf( "End Time %s\n", asctime(timeinfo) );
+            MPI_Bcast(_zmenaFun_outputType_derivujPodla, 3, MPI_INT, 0,MPI_COMM_WORLD);
+            if(_zmenaFun_outputType_derivujPodla[0] == -1)	{
+                MPI_Finalize();
+                return -1;
+            } else {
+                prijmanieDat(_pocetProc,_zmenaFun_outputType_derivujPodla);
+
+                printf( "Start Time %s\n", asctime(timeinfo) );
+                time( &rawtime );
+                timeinfo = localtime( &rawtime );
+                printf( "End Time %s\n", asctime(timeinfo) );
+            }
 	} else {
 /*__________DEFINE ALL CALCULATE PROCESS_________*/
-		int _velkostDat;
-		MPI_Bcast(&_zmenaFun_outputType[0], 2, MPI_INT, 0,MPI_COMM_WORLD);		//do _zmenaFun_outputType[0] načítam voľbu pre deriváciu na akú hodnotu sa má zmeniť výstup funkcie
-		if(_zmenaFun_outputType[0] == -1)	{
-			/*#############################*/
-			/* Ukončenie procesov s chybou */
-			/*#############################*/
-			MPI_Finalize();
-			return -1;
-		} else {
-			/*##############################*/
-			/* Korektné vykonávanie procesov*/
-			/*##############################*/
-			MPI_Status _status;
-			MPI_Probe(0, MPI_ANY_TAG, MPI_COMM_WORLD, &_status);
-			MPI_Get_count(&_status, MPI_CHAR, &_velkostDat);
-			_function_data = alloc_matrix(_velkostDat/2);
-			do {
-				MPI_Recv(&_function_data[0][0],_velkostDat, MPI_CHAR, 0,MPI_ANY_TAG, MPI_COMM_WORLD, &_status);
-				if(_status.MPI_TAG != END_TAG)	{
-					and_and(_function_data,_velkostDat,_zmenaFun_outputType,_pocetProc);
-				}
-			}while(_status.MPI_TAG != END_TAG);
-		}
+            unsigned long _receive_data[3];
+            unsigned long _vysledokNum = 0;
+            char* _vysledok;
+            char a;
+            char b;
+            FILE* _subor;
+            MPI_Status _status;
+
+            MPI_Bcast(&_zmenaFun_outputType_derivujPodla[0], 3, MPI_INT, 0,MPI_COMM_WORLD);	//do _zmenaFun_outputType_derivujPodla[0] načítam voľbu pre deriváciu na akú hodnotu sa má zmeniť výstup funkcie
+            if(_zmenaFun_outputType_derivujPodla[0] == -1)	{
+                /*#############################*/
+                /* Ukončenie procesov s chybou */
+                /*#############################*/
+                MPI_Finalize();
+                return -1;
+            } else {
+                /*##############################*/
+                /* Korektné vykonávanie procesov*/
+                /*##############################*/
+                _subor = fopen(argv[1],"r");
+                _vysledok = (char*) malloc(sizeof(char)*VELKOST_BUFFRA);
+                _premennaNaDruhu = pow(2,(double)_zmenaFun_outputType_derivujPodla[2]);
+                do {
+                    MPI_Recv(&_receive_data[0],3, MPI_UNSIGNED_LONG, 0,MPI_ANY_TAG, MPI_COMM_WORLD, &_status);
+                    if(_status.MPI_TAG != END_TAG)	{
+                        //printf("%d tag je ----> puzite nuly %ld,pouzite jednotky %ld, pocet %ld\n",_status.MPI_TAG,_receive_data[0],_receive_data[1],_receive_data[2]);
+                        switch(_zmenaFun_outputType_derivujPodla[1])	{
+
+                            case OUT_VECTOR:
+                                for(int i =0;i<_receive_data[2];i++)	{
+                                    a = dajData(_premennaNaDruhu,&_receive_data[0],&_receive_data[1],0,_subor);
+                                    b = dajData(_premennaNaDruhu,&_receive_data[0],&_receive_data[1],1,_subor);
+                                    a = a - '0';
+                                    b = b - '0';
+                                    if(_zmenaFun_outputType_derivujPodla[0] == 0)	{
+                                            _vysledok[i] = (!a*b);
+                                    } else {
+                                            _vysledok[i] = (a*!b);
+                                        }
+                                }
+                                MPI_Ssend(&_vysledok[0],(int)_receive_data[2], MPI_CHAR,_pocetProc-1,_status.MPI_TAG, MPI_COMM_WORLD);
+                                break;
+
+                            case OUT_NUMBER:
+                                for(int i =0;i<_receive_data[2];i++)	{
+                                    a = dajData(_premennaNaDruhu,&_receive_data[0],&_receive_data[1],0,_subor);
+                                    b = dajData(_premennaNaDruhu,&_receive_data[0],&_receive_data[1],1,_subor);
+                                    a = a - '0';
+                                    b = b - '0';
+                                    if(!_zmenaFun_outputType_derivujPodla[0] && (!a*b))	{//== 0
+                                            _vysledokNum++;
+                                    } else if (_zmenaFun_outputType_derivujPodla[0] && (a*!b)){//== 1
+                                            _vysledokNum++;
+                                    }
+                                }
+                                MPI_Ssend(&_vysledokNum,1, MPI_INT,_pocetProc-1,_status.MPI_TAG, MPI_COMM_WORLD);
+                                break;
+                        }
+                    }
+                }while(_status.MPI_TAG != END_TAG);
+
+                MPI_Ssend(NULL,0, MPI_INT,_pocetProc-1, END_TAG, MPI_COMM_WORLD); /*Ukoncenie počúvania vlákna!*/
+                free(_vysledok);
+                fclose(_subor);
+            }
 	}
 /*___________END DEFINE ALL CALCULATE PROCESS______*/
-	
-	
-	
-	
-	
-		
-	if(_rankP == 0)	{ //ROOT proc 0
-		free(_function_data);
-		free(Data);
-	} else if (_rankP != (_pocetProc-1)) { //Other proc
-		MPI_Ssend(NULL,0, MPI_INT,_pocetProc-1, END_TAG, MPI_COMM_WORLD); /*Ukoncenie počúvania vlákna!*/
-		free(Data);
-		free(_function_data);
-	}
-	MPI_Finalize();
-	return 0;
+
+    MPI_Finalize();
+    return 0;
 }
-/*hahahahaha*/
